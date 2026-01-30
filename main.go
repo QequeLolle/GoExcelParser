@@ -1,0 +1,332 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"math"
+	"os"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/xuri/excelize/v2"
+)
+
+type PhoneCall struct {
+	Call_id   int    `json: "call_id"`   // call id
+	From      string `json: "from"`      // user number 1
+	To        string `json: "to"`        // user number 2
+	Talktime  int    `json: "talktime"`  // seconds
+	Timestamp int64  `json: "timestamp"` // UNIX seconds
+}
+
+type ExcelTime struct {
+	Seconds int
+	Minutes int
+	Hours   int
+}
+
+// ===================
+
+const REPORT_NAME string = "Отчет по звонкам"
+
+var EXCEL_TEMPLATE_FILEPATH string = os.Args[1]
+var JSON_FILEPATH string = os.Args[2]
+var EXCEL_OUTPUT_FILEPATH string = os.Args[3]
+
+// ===================
+
+// read call data file
+func readCallsFile() []PhoneCall {
+	file, err := os.Open(JSON_FILEPATH)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var calls []PhoneCall
+
+	decoder := json.NewDecoder(file)
+	if err = decoder.Decode(&calls); err != nil {
+		log.Fatal(err)
+	}
+
+	if err = file.Close(); err != nil {
+		log.Fatal(err)
+	}
+
+	return calls
+}
+
+// convert seconds into hh:mm:ss format
+func convertSeconds(seconds int, hours_enable bool) ExcelTime {
+	var result ExcelTime
+
+	if hours_enable {
+
+		if seconds < 3600 {
+			result.Seconds = seconds % 60
+			result.Minutes = seconds / 60
+		} else {
+			result.Seconds = seconds % 3600 % 60
+			result.Minutes = seconds % 3600 / 60
+			result.Hours = seconds / 3600
+		}
+
+	} else {
+
+		result.Seconds = seconds % 60
+		result.Minutes = seconds / 60
+		result.Hours = -1
+
+	}
+
+	return result
+
+}
+
+// convert Unix time to dd.mm.yyyy date format
+func convertUnixTimestampToDateStr(timestamp int64) string {
+	return time.Unix(timestamp, 0).Format("02.01.2006")
+}
+
+// set report name in excel file
+func setReportName(file *excelize.File, reportName string) {
+	result, err := file.SearchSheet("Sheet1", "#reportName")
+	err = file.SetCellStr("Sheet1", result[0], reportName)
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+}
+
+// set dates of the period in excel file
+func setPeriod(file *excelize.File, from_timestamp int64, to_timestamp int64) {
+	result, err := file.SearchSheet("Sheet1", "#periodFrom")
+	err = file.SetCellStr("Sheet1", result[0], convertUnixTimestampToDateStr(from_timestamp))
+
+	result, err = file.SearchSheet("Sheet1", "#periodTo")
+	err = file.SetCellStr("Sheet1", result[0], convertUnixTimestampToDateStr(to_timestamp))
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+}
+
+// set now as generation date in excel file
+func setGenerationDate(file *excelize.File) {
+	result, err := file.SearchSheet("Sheet1", "#generationDate")
+	err = file.SetCellStr("Sheet1", result[0], time.Now().Format("02.01.2006"))
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+}
+
+// set generation date in excel file
+func setGenerationDateManually(file *excelize.File, generationDate time.Time) {
+	result, err := file.SearchSheet("Sheet1", "#generationDate")
+	err = file.SetCellStr("Sheet1", result[0], generationDate.Format("02.01.2006"))
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+}
+
+// set total number of phone calls in excel file
+func setTotalCalls(file *excelize.File, total int) {
+	result, err := file.SearchSheet("Sheet1", "#totalCalls")
+	err = file.SetCellInt("Sheet1", result[0], int64(total))
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+}
+
+// set total talk time in "hh ч mm мин" format in excel file
+func setTotalTalkTime(file *excelize.File, seconds int) {
+	result, err := file.SearchSheet("Sheet1", "#totalTalkTime")
+	str := strconv.Itoa(convertSeconds(seconds, true).Hours) + " ч " + strconv.Itoa(convertSeconds(seconds, true).Minutes) + " мин"
+	err = file.SetCellStr("Sheet1", result[0], str)
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+}
+
+// calculate total talk time in seconds
+func calcTotalTalkTime(callsData []PhoneCall) int {
+	totalTalkTime := 0
+	for i := range callsData {
+		totalTalkTime += callsData[i].Talktime
+	}
+
+	return totalTalkTime
+}
+
+// calculate average talk time in seconds
+func calcAvgTalkTime(callsData []PhoneCall) int {
+
+	return int(math.Ceil(float64(calcTotalTalkTime(callsData) / len(callsData))))
+}
+
+// set average talk time in "mm мин ss сек" format in excel file
+func setAvgTalkTime(file *excelize.File, seconds int) {
+	result, err := file.SearchSheet("Sheet1", "#avgTalkTime")
+	str := strconv.Itoa(convertSeconds(seconds, false).Minutes) + " мин " + strconv.Itoa(convertSeconds(seconds, false).Seconds) + " сек"
+	err = file.SetCellStr("Sheet1", result[0], str)
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+}
+
+func formatTalkTimeToPrint(seconds int) string {
+	// if seconds < 3600 {
+	// 	talkTime := convertSeconds(seconds, false)
+	// 	return string(strconv.Itoa(talkTime.Minutes) + ":" + strconv.Itoa(talkTime.Seconds))
+	// } else {
+	// 	talkTime := convertSeconds(seconds, true)
+	// 	return string(strconv.Itoa(talkTime.Hours) + ":" + strconv.Itoa(talkTime.Minutes) + ":" + strconv.Itoa(talkTime.Seconds))
+	// }
+
+	talkTime := convertSeconds(seconds, true)
+	return string(strconv.Itoa(talkTime.Hours) + ":" + strconv.Itoa(talkTime.Minutes) + ":" + strconv.Itoa(talkTime.Seconds))
+
+}
+
+func prepareCallsDataToPrint(callsData []PhoneCall) [][]string {
+	result := make([][]string, len(callsData))
+	for i := range len(callsData) {
+		result[i] = make([]string, 5)
+
+		strTalkTime := strconv.FormatFloat(float64(float64(callsData[i].Talktime)/86400.0), 'f', 5, 64)
+		// fmt.Println("STR TALKTIME: ", strTalkTime)
+		strTalkTime = strings.ReplaceAll(strTalkTime, ".", ",")
+		// fmt.Println("STR TALKTIME2: ", strTalkTime)
+
+		result[i][0] = strconv.Itoa(callsData[i].Call_id)
+		result[i][1] = callsData[i].From
+		result[i][2] = callsData[i].To
+		result[i][3] = strTalkTime                                                     // strconv.FormatFloat(float64(callsData[i].Talktime/86400), 'f', 6, 64) //formatTalkTimeToPrint(callsData[i].Talktime)
+		result[i][4] = time.Unix(callsData[i].Timestamp, 0).Format("02.01.2006 15:04") //convertUnixTimestampToDateStr(callsData[i].Timestamp)
+
+		// fmt.Printf("RESULT [%v]: call_id = %v, from = %v, to = %v, talktime = %v, datetime = %v\n",
+		// 	i, result[i][0], result[i][1], result[i][2], result[i][3], result[i][4])
+
+	}
+
+	return result
+
+}
+
+func printCallsData(file *excelize.File, callsData []PhoneCall) {
+	result, err := file.SearchSheet("Sheet1", "#callsTableStart")
+
+	prepareadData := prepareCallsDataToPrint(callsData)
+
+	// print first data row
+	err = file.SetSheetRow("Sheet1", result[0], &prepareadData[0])
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	if len(callsData) == 1 {
+
+		return
+
+	} else {
+
+		// !! change regex to excelize.SplitCellName !!
+
+		// extract column name from cell name
+		colRegexp := regexp.MustCompile(`[A-Z]+`)
+		colMatch := colRegexp.FindString(result[0])
+		// fmt.Println("MATCH COLUMN STRING = ", colMatch)
+
+		// extract row number from cell name
+		rowRegexp := regexp.MustCompile(`\d+`)
+		rowMatch := rowRegexp.FindString(result[0])
+		// fmt.Println("MATCH ROW STRING = ", rowMatch)
+
+		row, _ := strconv.ParseInt(rowMatch, 10, 0)
+
+		for i := 1; i < len(callsData); i++ {
+
+			// iterate to next row
+			row++
+			newCell := colMatch + strconv.Itoa(int(row))
+			// fmt.Println("NEW CELL COORDS FUNC: ", newCell)
+
+			// print data row
+			err = file.SetSheetRow("Sheet1", newCell, &prepareadData[i])
+
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+
+		}
+	}
+
+}
+
+// ===================
+
+func main() {
+
+	calls := readCallsFile()
+
+	f, err := excelize.OpenFile(EXCEL_TEMPLATE_FILEPATH)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer func() {
+		// close the spreadsheet
+		if err := f.Close(); err != nil {
+			fmt.Println(err)
+		}
+	}()
+
+	style, err := f.NewStyle(&excelize.Style{NumFmt: 46})
+	if err != nil {
+		fmt.Println(err)
+	}
+	err = f.SetCellStyle("Sheet1", "D12", "D14", style)
+
+	intStyle, err := f.NewStyle(&excelize.Style{NumFmt: 1})
+	err = f.SetCellStyle("Sheet1", "A12", "A14", intStyle)
+
+	dateStyle, err := f.NewStyle(&excelize.Style{NumFmt: 22})
+	err = f.SetCellStyle("Sheet1", "E12", "E14", dateStyle)
+
+	setReportName(f, REPORT_NAME)
+	setPeriod(f, calls[0].Timestamp, calls[len(calls)-1].Timestamp)
+	setGenerationDate(f)
+	setTotalCalls(f, len(calls))
+	setTotalTalkTime(f, calcTotalTalkTime(calls))
+	setAvgTalkTime(f, calcAvgTalkTime(calls))
+	prepareCallsDataToPrint(calls)
+	printCallsData(f, calls)
+
+	// str, err := f.CalcCellValue("Sheet1", "D12")
+	// fmt.Println("CALC: ", str)
+
+	if err := f.SaveAs(EXCEL_OUTPUT_FILEPATH); err != nil {
+		fmt.Println(err)
+	}
+
+	fmt.Println("Program finished. View results in output file ", EXCEL_OUTPUT_FILEPATH)
+
+}

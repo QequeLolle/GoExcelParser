@@ -1,0 +1,5 @@
+[
+  {"call_id": 1001, "from": "101", "to": "201", "talktime": 45, "timestamp": 1705267200},
+  {"call_id": 1002, "from": "102", "to": "202", "talktime": 127, "timestamp": 1705353600},
+  {"call_id": 1003, "from": "103", "to": "203", "talktime": 7263, "timestamp": 1705440000}
+]
