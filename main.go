@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -228,70 +229,201 @@ func prepareCallsDataToPrint(callsData []PhoneCall) [][]string {
 
 }
 
+// // print calls data in excel file
+// func printCallsData(file *excelize.File, callsData []PhoneCall) {
+// 	result, err := file.SearchSheet("Sheet1", "#callsTableStart")
+
+// 	prepareadData := prepareCallsDataToPrint(callsData)
+
+// 	// print first data row
+// 	err = file.SetSheetRow("Sheet1", result[0], &prepareadData[0])
+
+// 	if err != nil {
+// 		fmt.Println(err)
+// 		return
+// 	}
+
+// 	if len(callsData) == 1 {
+
+// 		return
+
+// 	} else {
+
+// 		// extract column name and row number from cell name
+// 		colStr, row, err := excelize.SplitCellName(result[0])
+
+// 		if err != nil {
+// 			fmt.Println(err)
+// 			return
+// 		}
+
+// 		/*
+// 			// extract column name from cell name
+// 			colRegexp := regexp.MustCompile(`[A-Z]+`)
+// 			colMatch := colRegexp.FindString(result[0])
+// 			// fmt.Println("MATCH COLUMN STRING = ", colMatch)
+
+// 			// extract row number from cell name
+// 			rowRegexp := regexp.MustCompile(`\d+`)
+// 			rowMatch := rowRegexp.FindString(result[0])
+// 			// fmt.Println("MATCH ROW STRING = ", rowMatch)
+
+// 			row, _ := strconv.ParseInt(rowMatch, 10, 0)
+// 		*/
+
+// 		for i := 1; i < len(callsData); i++ {
+
+// 			// iterate to next row
+// 			row++
+// 			newCell, err := excelize.JoinCellName(colStr, row)
+// 			// newCell := colMatch + strconv.Itoa(int(row))
+// 			// fmt.Println("NEW CELL COORDS FUNC: ", newCell)
+
+// 			if err != nil {
+// 				fmt.Println(err)
+// 				return
+// 			}
+
+// 			// print data row
+// 			err = file.SetSheetRow("Sheet1", newCell, &prepareadData[i])
+
+// 			if err != nil {
+// 				fmt.Println(err)
+// 				return
+// 			}
+
+// 		}
+// 	}
+
+// }
+
 // print calls data in excel file
 func printCallsData(file *excelize.File, callsData []PhoneCall) {
+
 	result, err := file.SearchSheet("Sheet1", "#callsTableStart")
-
-	prepareadData := prepareCallsDataToPrint(callsData)
-
-	// print first data row
-	err = file.SetSheetRow("Sheet1", result[0], &prepareadData[0])
 
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	if len(callsData) == 1 {
+	startCell := result[0]
 
+	startCol, startRow, err := excelize.CellNameToCoordinates(startCell)
+	if err != nil {
+		fmt.Println(err)
 		return
+	}
+	fmt.Println("START CELL: ", startCol, startRow)
 
-	} else {
+	// text format
+	textStyle, err := file.NewStyle(&excelize.Style{NumFmt: 0})
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-		// extract column name and row number from cell name
-		colStr, row, err := excelize.SplitCellName(result[0])
+	// [h]:mm:ss format
+	timeStyle, err := file.NewStyle(&excelize.Style{NumFmt: 46})
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
+	// dd.mm.yyyy hh:mm format
+	dateStyle, err := file.NewStyle(&excelize.Style{NumFmt: 22})
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-		/*
-			// extract column name from cell name
-			colRegexp := regexp.MustCompile(`[A-Z]+`)
-			colMatch := colRegexp.FindString(result[0])
-			// fmt.Println("MATCH COLUMN STRING = ", colMatch)
+	cell := startCell
+	col := startCol
+	row := startRow
 
-			// extract row number from cell name
-			rowRegexp := regexp.MustCompile(`\d+`)
-			rowMatch := rowRegexp.FindString(result[0])
-			// fmt.Println("MATCH ROW STRING = ", rowMatch)
+	for i := range callsData {
+		for j := range reflect.TypeFor[PhoneCall]().NumField() {
 
-			row, _ := strconv.ParseInt(rowMatch, 10, 0)
-		*/
-
-		for i := 1; i < len(callsData); i++ {
-
-			// iterate to next row
-			row++
-			newCell, err := excelize.JoinCellName(colStr, row)
-			// newCell := colMatch + strconv.Itoa(int(row))
-			// fmt.Println("NEW CELL COORDS FUNC: ", newCell)
-
+			cell, err = excelize.CoordinatesToCellName(col, row)
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
 
-			// print data row
-			err = file.SetSheetRow("Sheet1", newCell, &prepareadData[i])
+			switch j {
+			case 0:
+				err = file.SetCellStyle("Sheet1", cell, cell, textStyle)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
 
-			if err != nil {
-				fmt.Println(err)
-				return
+				err = file.SetCellValue("Sheet1", cell, callsData[i].Call_id)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+
+			case 1:
+				err = file.SetCellStyle("Sheet1", cell, cell, textStyle)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+
+				err = file.SetCellValue("Sheet1", cell, callsData[i].From)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+
+			case 2:
+				err = file.SetCellStyle("Sheet1", cell, cell, textStyle)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+
+				err = file.SetCellValue("Sheet1", cell, callsData[i].To)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+
+			case 3:
+				err = file.SetCellStyle("Sheet1", cell, cell, timeStyle)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+
+				err = file.SetCellValue("Sheet1", cell, float64(callsData[i].Talktime)/86400.0)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+
+			case 4:
+				err = file.SetCellStyle("Sheet1", cell, cell, dateStyle)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+
+				err = file.SetCellValue("Sheet1", cell, time.Unix(callsData[i].Timestamp, 0).Format("02.01.2006 15:04"))
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+
 			}
 
+			col++
 		}
+
+		row++
+		col = startCol
+
 	}
 
 }
@@ -425,12 +557,29 @@ func main() {
 	setTotalCalls(f, len(calls))
 	setTotalTalkTime(f, calcTotalTalkTime(calls))
 	setAvgTalkTime(f, calcAvgTalkTime(calls))
-	prepareCallsDataToPrint(calls)
-	setStyleForCallsDataCells(f, len(calls))
+	// prepareCallsDataToPrint(calls)
+	// setStyleForCallsDataCells(f, len(calls))
 	printCallsData(f, calls)
 
 	// str, err := f.CalcCellValue("Sheet1", "D12")
 	// fmt.Println("CALC: ", str)
+
+	// // Используем Excel формат времени
+	// excelTime := float64(45) / 86400.0
+
+	// styleID, err := f.NewStyle(&excelize.Style{
+	// 	NumFmt: 46, // [h]:mm:ss
+	// 	Alignment: &excelize.Alignment{
+	// 		Horizontal: "center",
+	// 	},
+	// })
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	return
+	// }
+
+	// f.SetCellStyle("Sheet1", "D20", "D20", styleID)
+	// f.SetCellValue("Sheet1", "D20", excelTime)
 
 	if err := f.SaveAs(EXCEL_OUTPUT_FILEPATH); err != nil {
 		fmt.Println(err)
