@@ -15,7 +15,7 @@ import (
 )
 
 type PhoneCall struct {
-	Call_id   int    `json: "call_id"`   // call id
+	CallID    int    `json: "call_id"`   // call id
 	From      string `json: "from"`      // user number 1
 	To        string `json: "to"`        // user number 2
 	Talktime  int    `json: "talktime"`  // seconds
@@ -30,18 +30,20 @@ type ExcelTime struct {
 
 // ===================
 
-const REPORT_NAME string = "Отчет по звонкам"
-const SHEET_NAME string = "Sheet1"
+const ReportName string = "Отчет по звонкам"
+const SheetName string = "Sheet1"
 
-var EXCEL_TEMPLATE_FILEPATH string = os.Args[1]
-var JSON_FILEPATH string = os.Args[2]
-var EXCEL_OUTPUT_FILEPATH string = os.Args[3]
+var (
+	ExcelTemplateFilepath string = os.Args[1]
+	JSONFilepath          string = os.Args[2]
+	ExcelOutputFilepath   string = os.Args[3]
+)
 
 // ===================
 
 // read call data file
 func readCallsDataFile() []PhoneCall {
-	file, err := os.Open(JSON_FILEPATH)
+	file, err := os.Open(JSONFilepath)
 	if err != nil {
 		log.Fatal(err)
 		fmt.Println(err)
@@ -100,12 +102,12 @@ func convertUnixTimestampToDateStr(timestamp int64) string {
 
 // set report name in excel file
 func setReportName(file *excelize.File, reportName string) {
-	result, err := file.SearchSheet(SHEET_NAME, "#reportName")
+	result, err := file.SearchSheet(SheetName, "#reportName")
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	err = file.SetCellStr(SHEET_NAME, result[0], reportName)
+	err = file.SetCellStr(SheetName, result[0], reportName)
 
 	if err != nil {
 		fmt.Println(err)
@@ -115,25 +117,25 @@ func setReportName(file *excelize.File, reportName string) {
 
 // set dates of the period in excel file
 func setPeriod(file *excelize.File, from_timestamp int64, to_timestamp int64) {
-	result, err := file.SearchSheet(SHEET_NAME, "#periodFrom")
+	result, err := file.SearchSheet(SheetName, "#periodFrom")
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	err = file.SetCellStr(SHEET_NAME, result[0], convertUnixTimestampToDateStr(from_timestamp))
+	err = file.SetCellStr(SheetName, result[0], convertUnixTimestampToDateStr(from_timestamp))
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	result, err = file.SearchSheet(SHEET_NAME, "#periodTo")
+	result, err = file.SearchSheet(SheetName, "#periodTo")
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	err = file.SetCellStr(SHEET_NAME, result[0], convertUnixTimestampToDateStr(to_timestamp))
+	err = file.SetCellStr(SheetName, result[0], convertUnixTimestampToDateStr(to_timestamp))
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -142,13 +144,13 @@ func setPeriod(file *excelize.File, from_timestamp int64, to_timestamp int64) {
 
 // set now as generation date in excel file
 func setGenerationDate(file *excelize.File) {
-	result, err := file.SearchSheet(SHEET_NAME, "#generationDate")
+	result, err := file.SearchSheet(SheetName, "#generationDate")
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	err = file.SetCellStr(SHEET_NAME, result[0], time.Now().Format("02.01.2006"))
+	err = file.SetCellStr(SheetName, result[0], time.Now().Format("02.01.2006"))
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -157,13 +159,13 @@ func setGenerationDate(file *excelize.File) {
 
 // set generation date in excel file
 func setGenerationDateManually(file *excelize.File, generationDate time.Time) {
-	result, err := file.SearchSheet(SHEET_NAME, "#generationDate")
+	result, err := file.SearchSheet(SheetName, "#generationDate")
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	err = file.SetCellStr(SHEET_NAME, result[0], generationDate.Format("02.01.2006"))
+	err = file.SetCellStr(SheetName, result[0], generationDate.Format("02.01.2006"))
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -172,13 +174,13 @@ func setGenerationDateManually(file *excelize.File, generationDate time.Time) {
 
 // set total number of phone calls in excel file
 func setTotalCalls(file *excelize.File, total int) {
-	result, err := file.SearchSheet(SHEET_NAME, "#totalCalls")
+	result, err := file.SearchSheet(SheetName, "#totalCalls")
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	err = file.SetCellInt(SHEET_NAME, result[0], int64(total))
+	err = file.SetCellInt(SheetName, result[0], int64(total))
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -187,7 +189,7 @@ func setTotalCalls(file *excelize.File, total int) {
 
 // set total talk time in "hh ч mm мин" format in excel file
 func setTotalTalkTime(file *excelize.File, seconds int) {
-	result, err := file.SearchSheet(SHEET_NAME, "#totalTalkTime")
+	result, err := file.SearchSheet(SheetName, "#totalTalkTime")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -195,7 +197,7 @@ func setTotalTalkTime(file *excelize.File, seconds int) {
 
 	str := strconv.Itoa(convertSeconds(seconds, true).Hours) + " ч " + strconv.Itoa(convertSeconds(seconds, true).Minutes) + " мин"
 
-	err = file.SetCellStr(SHEET_NAME, result[0], str)
+	err = file.SetCellStr(SheetName, result[0], str)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -220,7 +222,7 @@ func calcAvgTalkTime(callsData []PhoneCall) int {
 
 // set average talk time in "mm мин ss сек" format in excel file
 func setAvgTalkTime(file *excelize.File, seconds int) {
-	result, err := file.SearchSheet(SHEET_NAME, "#avgTalkTime")
+	result, err := file.SearchSheet(SheetName, "#avgTalkTime")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -228,7 +230,7 @@ func setAvgTalkTime(file *excelize.File, seconds int) {
 
 	str := strconv.Itoa(convertSeconds(seconds, false).Minutes) + " мин " + strconv.Itoa(convertSeconds(seconds, false).Seconds) + " сек"
 
-	err = file.SetCellStr(SHEET_NAME, result[0], str)
+	err = file.SetCellStr(SheetName, result[0], str)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -257,7 +259,7 @@ func prepareCallsDataToPrint(callsData []PhoneCall) [][]string {
 		strTalkTime = strings.ReplaceAll(strTalkTime, ".", ",")
 		// fmt.Println("STR TALKTIME2: ", strTalkTime)
 
-		result[i][0] = strconv.Itoa(callsData[i].Call_id)
+		result[i][0] = strconv.Itoa(callsData[i].CallID)
 		result[i][1] = callsData[i].From
 		result[i][2] = callsData[i].To
 		result[i][3] = strTalkTime                                                     // strconv.FormatFloat(float64(callsData[i].Talktime/86400), 'f', 6, 64) //formatTalkTimeToPrint(callsData[i].Talktime)
@@ -276,12 +278,12 @@ func prepareCallsDataToPrint(callsData []PhoneCall) [][]string {
 // --- DEPRECATED ---
 // print calls data in excel file
 func printCallsData(file *excelize.File, callsData []PhoneCall) {
-	result, err := file.SearchSheet(SHEET_NAME, "#callsTableStart")
+	result, err := file.SearchSheet(SheetName, "#callsTableStart")
 
 	prepareadData := prepareCallsDataToPrint(callsData)
 
 	// print first data row
-	err = file.SetSheetRow(SHEET_NAME, result[0], &prepareadData[0])
+	err = file.SetSheetRow(SheetName, result[0], &prepareadData[0])
 
 	if err != nil {
 		fmt.Println(err)
@@ -316,7 +318,7 @@ func printCallsData(file *excelize.File, callsData []PhoneCall) {
 			}
 
 			// print data row
-			err = file.SetSheetRow(SHEET_NAME, newCell, &prepareadData[i])
+			err = file.SetSheetRow(SheetName, newCell, &prepareadData[i])
 
 			if err != nil {
 				fmt.Println(err)
@@ -332,7 +334,7 @@ func printCallsData(file *excelize.File, callsData []PhoneCall) {
 // print calls data in excel file
 func printCallsData(file *excelize.File, callsData []PhoneCall) {
 
-	result, err := file.SearchSheet(SHEET_NAME, "#callsTableStart")
+	result, err := file.SearchSheet(SheetName, "#callsTableStart")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -393,52 +395,52 @@ func printCallsData(file *excelize.File, callsData []PhoneCall) {
 
 			switch j {
 			case 0:
-				err = file.SetCellStyle(SHEET_NAME, cell, cell, textStyle)
+				err = file.SetCellStyle(SheetName, cell, cell, textStyle)
 				if err != nil {
 					fmt.Println(err)
 					return
 				}
 
-				err = file.SetCellValue(SHEET_NAME, cell, callsData[i].Call_id)
+				err = file.SetCellValue(SheetName, cell, callsData[i].CallID)
 				if err != nil {
 					fmt.Println(err)
 					return
 				}
 
 			case 1:
-				err = file.SetCellStyle(SHEET_NAME, cell, cell, textStyle)
+				err = file.SetCellStyle(SheetName, cell, cell, textStyle)
 				if err != nil {
 					fmt.Println(err)
 					return
 				}
 
-				err = file.SetCellValue(SHEET_NAME, cell, callsData[i].From)
+				err = file.SetCellValue(SheetName, cell, callsData[i].From)
 				if err != nil {
 					fmt.Println(err)
 					return
 				}
 
 			case 2:
-				err = file.SetCellStyle(SHEET_NAME, cell, cell, textStyle)
+				err = file.SetCellStyle(SheetName, cell, cell, textStyle)
 				if err != nil {
 					fmt.Println(err)
 					return
 				}
 
-				err = file.SetCellValue(SHEET_NAME, cell, callsData[i].To)
+				err = file.SetCellValue(SheetName, cell, callsData[i].To)
 				if err != nil {
 					fmt.Println(err)
 					return
 				}
 
 			case 3:
-				err = file.SetCellStyle(SHEET_NAME, cell, cell, timeStyle)
+				err = file.SetCellStyle(SheetName, cell, cell, timeStyle)
 				if err != nil {
 					fmt.Println(err)
 					return
 				}
 
-				err = file.SetCellValue(SHEET_NAME, cell, float64(callsData[i].Talktime)/86400.0)
+				err = file.SetCellValue(SheetName, cell, float64(callsData[i].Talktime)/86400.0)
 				if err != nil {
 					fmt.Println(err)
 					return
@@ -446,13 +448,13 @@ func printCallsData(file *excelize.File, callsData []PhoneCall) {
 
 				/*
 					// you can use this block of code instead case 3 block for time in string representation
-					err = file.SetCellStyle(SHEET_NAME, cell, cell, textStyle)
+					err = file.SetCellStyle(SheetName, cell, cell, textStyle)
 					if err != nil {
 						fmt.Println(err)
 						return
 					}
 
-					err = file.SetCellValue(SHEET_NAME, cell, formatTalkTimeToPrint(callsData[i].Talktime))
+					err = file.SetCellValue(SheetName, cell, formatTalkTimeToPrint(callsData[i].Talktime))
 					if err != nil {
 						fmt.Println(err)
 						return
@@ -460,13 +462,13 @@ func printCallsData(file *excelize.File, callsData []PhoneCall) {
 				*/
 
 			case 4:
-				err = file.SetCellStyle(SHEET_NAME, cell, cell, dateStyle)
+				err = file.SetCellStyle(SheetName, cell, cell, dateStyle)
 				if err != nil {
 					fmt.Println(err)
 					return
 				}
 
-				err = file.SetCellValue(SHEET_NAME, cell, time.Unix(callsData[i].Timestamp, 0).Format("02.01.2006 15:04"))
+				err = file.SetCellValue(SheetName, cell, time.Unix(callsData[i].Timestamp, 0).Format("02.01.2006 15:04"))
 				if err != nil {
 					fmt.Println(err)
 					return
@@ -488,7 +490,7 @@ func printCallsData(file *excelize.File, callsData []PhoneCall) {
 // set reqired formating for calls data cells
 func setStyleForCallsDataCells(file *excelize.File, rows int) {
 
-	result, err := file.SearchSheet(SHEET_NAME, "#callsTableStart")
+	result, err := file.SearchSheet(SheetName, "#callsTableStart")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -525,7 +527,7 @@ func setStyleForCallsDataCells(file *excelize.File, rows int) {
 		}
 
 		// apply format to the specified column
-		err = file.SetCellStyle(SHEET_NAME, firstCell, lastCell, intStyle)
+		err = file.SetCellStyle(SheetName, firstCell, lastCell, intStyle)
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -557,7 +559,7 @@ func setStyleForCallsDataCells(file *excelize.File, rows int) {
 	}
 
 	// apply [h]:mm:ss format to "Длит." column
-	err = file.SetCellStyle(SHEET_NAME, firstCell, lastCell, timeStyle)
+	err = file.SetCellStyle(SheetName, firstCell, lastCell, timeStyle)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -583,7 +585,7 @@ func setStyleForCallsDataCells(file *excelize.File, rows int) {
 	}
 
 	// apply dd.mm.yyyy hh:mm format to "Дата и время" column
-	err = file.SetCellStyle(SHEET_NAME, firstCell, lastCell, dateStyle)
+	err = file.SetCellStyle(SheetName, firstCell, lastCell, dateStyle)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -593,7 +595,7 @@ func setStyleForCallsDataCells(file *excelize.File, rows int) {
 // print all required data in excel file
 func printExcelFile(input_file *excelize.File, output_file string, callsData []PhoneCall) {
 
-	setReportName(input_file, REPORT_NAME)
+	setReportName(input_file, ReportName)
 	setPeriod(input_file, callsData[0].Timestamp, callsData[len(callsData)-1].Timestamp)
 	setGenerationDate(input_file)
 	setTotalCalls(input_file, len(callsData))
@@ -613,7 +615,7 @@ func main() {
 
 	callsData := readCallsDataFile()
 
-	f, err := excelize.OpenFile(EXCEL_TEMPLATE_FILEPATH)
+	f, err := excelize.OpenFile(ExcelTemplateFilepath)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -625,8 +627,8 @@ func main() {
 		}
 	}()
 
-	printExcelFile(f, EXCEL_OUTPUT_FILEPATH, callsData)
+	printExcelFile(f, ExcelOutputFilepath, callsData)
 
-	fmt.Println("Program finished. View results in output file ", EXCEL_OUTPUT_FILEPATH)
+	fmt.Println("Program finished. View results in output file ", ExcelOutputFilepath)
 
 }
