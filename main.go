@@ -8,7 +8,6 @@ import (
 	"os"
 	"reflect"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/xuri/excelize/v2"
@@ -42,30 +41,27 @@ var (
 // ===================
 
 // read call data file
-func readCallsDataFile() []PhoneCall {
+func readCallsDataFile() ([]PhoneCall, error) {
 	file, err := os.Open(JSONFilepath)
 	if err != nil {
-		log.Fatal(err)
 		fmt.Println(err)
-		return nil
+		return nil, err
 	}
 
 	var calls []PhoneCall
 
 	decoder := json.NewDecoder(file)
 	if err = decoder.Decode(&calls); err != nil {
-		log.Fatal(err)
 		fmt.Println(err)
-		return nil
+		return nil, err
 	}
 
 	if err = file.Close(); err != nil {
-		log.Fatal(err)
 		fmt.Println(err)
-		return nil
+		return nil, err
 	}
 
-	return calls
+	return calls, nil
 }
 
 // convert seconds into hh:mm:ss format
@@ -247,33 +243,6 @@ func formatTalkTimeToPrint(seconds int) string {
 
 }
 
-// --- DEPRECATED ---
-// convert calls data into strings for printing in excel file
-func prepareCallsDataToPrint(callsData []PhoneCall) [][]string {
-	result := make([][]string, len(callsData))
-	for i := range len(callsData) {
-		result[i] = make([]string, 5)
-
-		strTalkTime := strconv.FormatFloat(float64(float64(callsData[i].Talktime)/86400.0), 'f', 5, 64)
-		// fmt.Println("STR TALKTIME: ", strTalkTime)
-		strTalkTime = strings.ReplaceAll(strTalkTime, ".", ",")
-		// fmt.Println("STR TALKTIME2: ", strTalkTime)
-
-		result[i][0] = strconv.Itoa(callsData[i].CallID)
-		result[i][1] = callsData[i].From
-		result[i][2] = callsData[i].To
-		result[i][3] = strTalkTime                                                     // strconv.FormatFloat(float64(callsData[i].Talktime/86400), 'f', 6, 64) //formatTalkTimeToPrint(callsData[i].Talktime)
-		result[i][4] = time.Unix(callsData[i].Timestamp, 0).Format("02.01.2006 15:04") //convertUnixTimestampToDateStr(callsData[i].Timestamp)
-
-		// fmt.Printf("RESULT [%v]: call_id = %v, from = %v, to = %v, talktime = %v, datetime = %v\n",
-		// 	i, result[i][0], result[i][1], result[i][2], result[i][3], result[i][4])
-
-	}
-
-	return result
-
-}
-
 // print calls data in excel file
 func printCallsData(file *excelize.File, callsData []PhoneCall) {
 
@@ -450,17 +419,24 @@ func printExcelFile(input_file *excelize.File, output_file string, callsData []P
 
 func main() {
 
-	callsData := readCallsDataFile()
+	callsData, err := readCallsDataFile()
+	if err != nil {
+		fmt.Println(err)
+		log.Fatal(err)
+		return
+	}
 
 	f, err := excelize.OpenFile(ExcelTemplateFilepath)
 	if err != nil {
 		fmt.Println(err)
+		log.Fatal(err)
 		return
 	}
 	defer func() {
 		// close the spreadsheet
 		if err := f.Close(); err != nil {
 			fmt.Println(err)
+			log.Fatal(err)
 		}
 	}()
 
