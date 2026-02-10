@@ -7,18 +7,17 @@ import (
 	"math"
 	"os"
 	"reflect"
-	"strconv"
 	"time"
 
 	"github.com/xuri/excelize/v2"
 )
 
 type PhoneCall struct {
-	CallID    int    `json: "call_id"`   // call id
-	From      string `json: "from"`      // user number 1
-	To        string `json: "to"`        // user number 2
-	Talktime  int    `json: "talktime"`  // seconds
-	Timestamp int64  `json: "timestamp"` // UNIX seconds
+	CallID    int    `json:"call_id"`   // call id
+	From      string `json:"from"`      // user number 1
+	To        string `json:"to"`        // user number 2
+	Talktime  int    `json:"talktime"`  // seconds
+	Timestamp int64  `json:"timestamp"` // UNIX seconds
 }
 
 type ExcelTime struct {
@@ -183,23 +182,6 @@ func setTotalCalls(file *excelize.File, total int) {
 	}
 }
 
-// set total talk time in "hh ч mm мин" format in excel file
-func setTotalTalkTime(file *excelize.File, seconds int) {
-	result, err := file.SearchSheet(SheetName, "#totalTalkTime")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	str := strconv.Itoa(convertSeconds(seconds, true).Hours) + " ч " + strconv.Itoa(convertSeconds(seconds, true).Minutes) + " мин"
-
-	err = file.SetCellStr(SheetName, result[0], str)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-}
-
 // calculate total talk time in seconds
 func calcTotalTalkTime(callsData []PhoneCall) int {
 	totalTalkTime := 0
@@ -216,6 +198,33 @@ func calcAvgTalkTime(callsData []PhoneCall) int {
 	return int(math.Ceil(float64(calcTotalTalkTime(callsData) / len(callsData))))
 }
 
+// set total talk time in "hh ч mm мин" format in excel file
+func setTotalTalkTime(file *excelize.File, seconds int) {
+	result, err := file.SearchSheet(SheetName, "#totalTalkTime")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	totalTalkTime := time.Duration(seconds) * time.Second
+	totalTalkTimeStr := ""
+	if totalTalkTime.Hours() < 1.0 {
+		totalTalkTimeStr = "0 ч " + time.Time{}.Add(totalTalkTime).Format("4 мин")
+
+	} else if totalTalkTime.Hours() < 12.0 {
+		totalTalkTimeStr = time.Time{}.Add(totalTalkTime).Format("3 ч 4 мин")
+
+	} else {
+		totalTalkTimeStr = time.Time{}.Add(totalTalkTime).Format("15 ч 4 мин")
+	}
+
+	err = file.SetCellValue(SheetName, result[0], totalTalkTimeStr)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+}
+
 // set average talk time in "mm мин ss сек" format in excel file
 func setAvgTalkTime(file *excelize.File, seconds int) {
 	result, err := file.SearchSheet(SheetName, "#avgTalkTime")
@@ -224,9 +233,10 @@ func setAvgTalkTime(file *excelize.File, seconds int) {
 		return
 	}
 
-	str := strconv.Itoa(convertSeconds(seconds, false).Minutes) + " мин " + strconv.Itoa(convertSeconds(seconds, false).Seconds) + " сек"
+	avgTalkTime := time.Duration(seconds) * time.Second
+	avgTalkTimeStr := time.Time{}.Add(avgTalkTime).Format("4 мин 05 сек")
 
-	err = file.SetCellStr(SheetName, result[0], str)
+	err = file.SetCellValue(SheetName, result[0], avgTalkTimeStr)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -235,11 +245,17 @@ func setAvgTalkTime(file *excelize.File, seconds int) {
 
 func formatTalkTimeToPrint(seconds int) string {
 
-	talkTime := convertSeconds(seconds, true)
-	if talkTime.Hours > 0 {
-		return fmt.Sprintf("%d:%02d:%02d", talkTime.Hours, talkTime.Minutes, talkTime.Seconds)
+	// zeroTime := time.Time{}
+	talkTime := time.Duration(seconds) * time.Second
+	if talkTime.Hours() > 0 {
+		return time.Time{}.Add(talkTime).Format("15:04:05")
 	}
-	return fmt.Sprintf("%d:%02d", talkTime.Minutes, talkTime.Seconds)
+	return time.Time{}.Add(talkTime).Format("04:05")
+
+	// if talkTime.Hours > 0 {
+	// 	return fmt.Sprintf("%d:%02d:%02d", talkTime.Hours, talkTime.Minutes, talkTime.Seconds)
+	// }
+	// return fmt.Sprintf("%d:%02d", talkTime.Minutes, talkTime.Seconds)
 
 }
 
