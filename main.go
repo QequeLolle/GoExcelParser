@@ -28,8 +28,10 @@ type ExcelTime struct {
 
 // ===================
 
-const ReportName string = "Отчет по звонкам"
-const SheetName string = "Sheet1"
+const (
+	ReportName string = "Отчет по звонкам"
+	SheetName  string = "Sheet1"
+)
 
 var (
 	ExcelTemplateFilepath string = os.Args[1]
