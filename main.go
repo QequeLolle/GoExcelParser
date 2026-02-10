@@ -139,30 +139,27 @@ func setPeriod(file *excelize.File, from_timestamp int64, to_timestamp int64) {
 	}
 }
 
-// set now as generation date in excel file
-func setGenerationDate(file *excelize.File) {
+// set generation date in excel file.
+// generationDate is an option, only one date is supported.
+// by default generationDate = time.Now()
+func setGenerationDate(file *excelize.File, generationDate ...time.Time) {
 	result, err := file.SearchSheet(SheetName, "#generationDate")
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	err = file.SetCellStr(SheetName, result[0], time.Now().Format("02.01.2006"))
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-}
+	if generationDate != nil {
+		err = file.SetCellValue(SheetName, result[0], generationDate[0].Format("02.01.2006"))
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 
-// set generation date in excel file
-func setGenerationDateManually(file *excelize.File, generationDate time.Time) {
-	result, err := file.SearchSheet(SheetName, "#generationDate")
-	if err != nil {
-		fmt.Println(err)
 		return
 	}
 
-	err = file.SetCellStr(SheetName, result[0], generationDate.Format("02.01.2006"))
+	err = file.SetCellValue(SheetName, result[0], time.Now().Format("02.01.2006"))
 	if err != nil {
 		fmt.Println(err)
 		return
