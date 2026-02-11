@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -97,19 +98,73 @@ func convertUnixTimestampToDateStr(timestamp int64) string {
 	return time.Unix(timestamp, 0).Format("02.01.2006")
 }
 
+// set cell value by tag in excel file.
+// tag is a formated string:
+//
+//	"#<tag>"
+//
+// supported value types:
+//
+//	int
+//	int8
+//	int16
+//	int32
+//	int64
+//	uint
+//	uint8
+//	uint16
+//	uint32
+//	uint64
+//	float32
+//	float64
+//	string
+//	[]byte
+//	time.Duration
+//	time.Time
+//	bool
+//	nil
+func setCellByTag(file *excelize.File, tag string, value any) error {
+
+	result, err := file.SearchSheet(SheetName, tag)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	if len(result) == 0 {
+		fmt.Printf("Tag %s wasn't found in %s", tag, ExcelTemplateFilepath)
+		err = errors.New("Tag " + tag + " wasn't found in " + ExcelTemplateFilepath)
+		return err
+	}
+
+	err = file.SetCellValue(SheetName, result[0], value)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	return nil
+}
+
 // set report name in excel file
-func setReportName(file *excelize.File, reportName string) {
+func setReportName(file *excelize.File, reportName string) error {
+
 	result, err := file.SearchSheet(SheetName, "#reportName")
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
+	}
+	if len(result) == 0 {
+		fmt.Println("Tag #reportName wasn't found in ", ExcelTemplateFilepath)
 	}
 	err = file.SetCellStr(SheetName, result[0], reportName)
 
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
+
+	return nil
 }
 
 // set dates of the period in excel file
