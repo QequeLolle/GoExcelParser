@@ -149,16 +149,7 @@ func setCellByTag(file *excelize.File, tag string, value any) error {
 // set report name in excel file
 func setReportName(file *excelize.File, reportName string) error {
 
-	result, err := file.SearchSheet(SheetName, "#reportName")
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
-	if len(result) == 0 {
-		fmt.Println("Tag #reportName wasn't found in ", ExcelTemplateFilepath)
-	}
-	err = file.SetCellStr(SheetName, result[0], reportName)
-
+	err := setCellByTag(file, "#reportName", reportName)
 	if err != nil {
 		fmt.Println(err)
 		return err
@@ -168,72 +159,59 @@ func setReportName(file *excelize.File, reportName string) error {
 }
 
 // set dates of the period in excel file
-func setPeriod(file *excelize.File, from_timestamp int64, to_timestamp int64) {
-	result, err := file.SearchSheet(SheetName, "#periodFrom")
+func setPeriod(file *excelize.File, from_timestamp int64, to_timestamp int64) error {
+
+	err := setCellByTag(file, "#periodFrom", convertUnixTimestampToDateStr(from_timestamp))
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
 
-	err = file.SetCellStr(SheetName, result[0], convertUnixTimestampToDateStr(from_timestamp))
+	err = setCellByTag(file, "#periodTo", convertUnixTimestampToDateStr(to_timestamp))
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
 
-	result, err = file.SearchSheet(SheetName, "#periodTo")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	err = file.SetCellStr(SheetName, result[0], convertUnixTimestampToDateStr(to_timestamp))
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+	return nil
 }
 
 // set generation date in excel file.
 // generationDate is an option, only one date is supported.
-// by default generationDate = time.Now()
-func setGenerationDate(file *excelize.File, generationDate ...time.Time) {
-	result, err := file.SearchSheet(SheetName, "#generationDate")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+// By default:
+//
+//	generationDate = time.Now()
+func setGenerationDate(file *excelize.File, generationDate ...time.Time) error {
 
-	if generationDate != nil {
-		err = file.SetCellValue(SheetName, result[0], generationDate[0].Format("02.01.2006"))
+	if len(generationDate) > 0 {
+		err := setCellByTag(file, "#generationDate", generationDate[0].Format("02.01.2006"))
 		if err != nil {
 			fmt.Println(err)
-			return
+			return err
 		}
 
-		return
+		return nil
 	}
 
-	err = file.SetCellValue(SheetName, result[0], time.Now().Format("02.01.2006"))
+	err := setCellByTag(file, "#generationDate", time.Now().Format("02.01.2006"))
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
+
+	return nil
 }
 
 // set total number of phone calls in excel file
-func setTotalCalls(file *excelize.File, total int) {
-	result, err := file.SearchSheet(SheetName, "#totalCalls")
+func setTotalCalls(file *excelize.File, total int) error {
+
+	err := setCellByTag(file, "#totalCalls", total)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
 
-	err = file.SetCellInt(SheetName, result[0], int64(total))
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+	return nil
 }
 
 // calculate total talk time in seconds
@@ -253,12 +231,7 @@ func calcAvgTalkTime(callsData []PhoneCall) int {
 }
 
 // set total talk time in "hh ч mm мин" format in excel file
-func setTotalTalkTime(file *excelize.File, seconds int) {
-	result, err := file.SearchSheet(SheetName, "#totalTalkTime")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+func setTotalTalkTime(file *excelize.File, seconds int) error {
 
 	totalTalkTime := time.Duration(seconds) * time.Second
 	totalTalkTimeStr := ""
@@ -272,29 +245,28 @@ func setTotalTalkTime(file *excelize.File, seconds int) {
 		totalTalkTimeStr = time.Time{}.Add(totalTalkTime).Format("15 ч 4 мин")
 	}
 
-	err = file.SetCellValue(SheetName, result[0], totalTalkTimeStr)
+	err := setCellByTag(file, "#totalTalkTime", totalTalkTimeStr)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
+
+	return nil
 }
 
 // set average talk time in "mm мин ss сек" format in excel file
-func setAvgTalkTime(file *excelize.File, seconds int) {
-	result, err := file.SearchSheet(SheetName, "#avgTalkTime")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+func setAvgTalkTime(file *excelize.File, seconds int) error {
 
 	avgTalkTime := time.Duration(seconds) * time.Second
 	avgTalkTimeStr := time.Time{}.Add(avgTalkTime).Format("4 мин 05 сек")
 
-	err = file.SetCellValue(SheetName, result[0], avgTalkTimeStr)
+	err := setCellByTag(file, "#avgTalkTime", avgTalkTimeStr)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
+
+	return nil
 }
 
 func formatTalkTimeToPrint(seconds int) string {
