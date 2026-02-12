@@ -7,7 +7,6 @@ import (
 	"log"
 	"math"
 	"os"
-	"reflect"
 	"time"
 
 	"github.com/xuri/excelize/v2"
@@ -285,21 +284,88 @@ func formatTalkTimeToPrint(seconds int) string {
 
 }
 
-// print calls data in excel file
-func printCallsData(file *excelize.File, callsData []PhoneCall) {
+// returns a cell in the next column in the same row
+func nextCell(cell string) (string, error) {
 
-	result, err := file.SearchSheet(SheetName, "#callsTableStart")
+	col, row, err := excelize.CellNameToCoordinates(cell)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return "", err
+	}
+
+	col++
+
+	nextCell, err := excelize.CoordinatesToCellName(col, row)
+	if err != nil {
+		fmt.Println(err)
+		return "", err
+	}
+
+	return nextCell, nil
+}
+
+// returns a cell in the next row in the specified start column
+func nextRow(cell string, startCol int) (string, error) {
+
+	col, row, err := excelize.CellNameToCoordinates(cell)
+	if err != nil {
+		fmt.Println(err)
+		return "", err
+	}
+
+	row++
+	col = startCol
+
+	nextRow, err := excelize.CoordinatesToCellName(col, row)
+	if err != nil {
+		fmt.Println(err)
+		return "", err
+	}
+
+	return nextRow, nil
+}
+
+// print cell with format (style) in excel file
+func printCell(file *excelize.File, cell string, style int, value any) error {
+
+	err := file.SetCellStyle(SheetName, cell, cell, style)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	err = file.SetCellValue(SheetName, cell, value)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	return nil
+}
+
+// print calls data in excel file
+func printCallsData(file *excelize.File, callsData []PhoneCall) error {
+
+	tag := "#callsTableStart"
+
+	result, err := file.SearchSheet(SheetName, tag)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	if len(result) == 0 {
+		fmt.Printf("Tag %s wasn't found in %s", tag, ExcelTemplateFilepath)
+		err = errors.New("Tag " + tag + " wasn't found in " + ExcelTemplateFilepath)
+		return err
 	}
 
 	startCell := result[0]
 
-	startCol, startRow, err := excelize.CellNameToCoordinates(startCell)
+	startCol, _, err := excelize.CellNameToCoordinates(startCell)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
 	// fmt.Println("START CELL: ", startCol, startRow)
 
@@ -312,7 +378,7 @@ func printCallsData(file *excelize.File, callsData []PhoneCall) {
 	})
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
 
 	// [h]:mm:ss format
@@ -324,119 +390,205 @@ func printCallsData(file *excelize.File, callsData []PhoneCall) {
 	})
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
 
 	// dd.mm.yyyy hh:mm format
 	dateStyle, err := file.NewStyle(&excelize.Style{NumFmt: 22})
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
 
 	cell := startCell
-	col := startCol
-	row := startRow
+	// col := startCol
+	// row := startRow
 
 	for i := range callsData {
-		for j := range reflect.TypeFor[PhoneCall]().NumField() {
 
-			cell, err = excelize.CoordinatesToCellName(col, row)
+		// "ID звонка"
+		err = printCell(file, cell, textStyle, callsData[i].CallID)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+
+		cell, err = nextCell(cell)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+
+		// =-=-=-=-=-=-=
+
+		// "От кого"
+		err = printCell(file, cell, textStyle, callsData[i].From)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+
+		cell, err = nextCell(cell)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+
+		// =-=-=-=-=-=-=
+
+		// "Кому"
+		err = printCell(file, cell, textStyle, callsData[i].To)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+
+		cell, err = nextCell(cell)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+
+		// =-=-=-=-=-=-=
+
+		// "Длит."
+		err = printCell(file, cell, timeStyle, float64(callsData[i].Talktime)/86400.0)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+
+		/*
+			// you can use this block of code instead for time in string representation
+			err = printCell(file, cell, textStyle, formatTalkTimeToPrint(callsData[i].Talktime))
 			if err != nil {
 				fmt.Println(err)
-				return
+				return err
 			}
+		*/
 
-			switch j {
-			case 0:
+		cell, err = nextCell(cell)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+
+		// =-=-=-=-=-=-=
+
+		// "Дата и время"
+		err = printCell(file, cell, dateStyle, time.Unix(callsData[i].Timestamp, 0).Format("02.01.2006 15:04"))
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+
+		// =-=-=-=-=-=-=
+
+		cell, err = nextRow(cell, startCol)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+
+		/*
+			for j := range reflect.TypeFor[PhoneCall]().NumField() {
+
+				cell, err = excelize.CoordinatesToCellName(col, row)
+				if err != nil {
+					fmt.Println(err)
+					return err
+				}
+
 				err = file.SetCellStyle(SheetName, cell, cell, textStyle)
 				if err != nil {
 					fmt.Println(err)
-					return
+					return err
 				}
 
 				err = file.SetCellValue(SheetName, cell, callsData[i].CallID)
 				if err != nil {
 					fmt.Println(err)
-					return
+					return err
 				}
 
-			case 1:
-				err = file.SetCellStyle(SheetName, cell, cell, textStyle)
-				if err != nil {
-					fmt.Println(err)
-					return
-				}
-
-				err = file.SetCellValue(SheetName, cell, callsData[i].From)
-				if err != nil {
-					fmt.Println(err)
-					return
-				}
-
-			case 2:
-				err = file.SetCellStyle(SheetName, cell, cell, textStyle)
-				if err != nil {
-					fmt.Println(err)
-					return
-				}
-
-				err = file.SetCellValue(SheetName, cell, callsData[i].To)
-				if err != nil {
-					fmt.Println(err)
-					return
-				}
-
-			case 3:
-				err = file.SetCellStyle(SheetName, cell, cell, timeStyle)
-				if err != nil {
-					fmt.Println(err)
-					return
-				}
-
-				err = file.SetCellValue(SheetName, cell, float64(callsData[i].Talktime)/86400.0)
-				if err != nil {
-					fmt.Println(err)
-					return
-				}
-
-				/*
-					// you can use this block of code instead case 3 block for time in string representation
+				switch j {
+				case 0:
 					err = file.SetCellStyle(SheetName, cell, cell, textStyle)
 					if err != nil {
 						fmt.Println(err)
 						return
 					}
 
-					err = file.SetCellValue(SheetName, cell, formatTalkTimeToPrint(callsData[i].Talktime))
+					err = file.SetCellValue(SheetName, cell, callsData[i].CallID)
 					if err != nil {
 						fmt.Println(err)
 						return
 					}
-				*/
 
-			case 4:
-				err = file.SetCellStyle(SheetName, cell, cell, dateStyle)
-				if err != nil {
-					fmt.Println(err)
-					return
+				case 1:
+					err = file.SetCellStyle(SheetName, cell, cell, textStyle)
+					if err != nil {
+						fmt.Println(err)
+						return
+					}
+
+					err = file.SetCellValue(SheetName, cell, callsData[i].From)
+					if err != nil {
+						fmt.Println(err)
+						return
+					}
+
+				case 2:
+					err = file.SetCellStyle(SheetName, cell, cell, textStyle)
+					if err != nil {
+						fmt.Println(err)
+						return
+					}
+
+					err = file.SetCellValue(SheetName, cell, callsData[i].To)
+					if err != nil {
+						fmt.Println(err)
+						return
+					}
+
+				case 3:
+					err = file.SetCellStyle(SheetName, cell, cell, timeStyle)
+					if err != nil {
+						fmt.Println(err)
+						return
+					}
+
+					err = file.SetCellValue(SheetName, cell, float64(callsData[i].Talktime)/86400.0)
+					if err != nil {
+						fmt.Println(err)
+						return
+					}
+
+				case 4:
+					err = file.SetCellStyle(SheetName, cell, cell, dateStyle)
+					if err != nil {
+						fmt.Println(err)
+						return
+					}
+
+					err = file.SetCellValue(SheetName, cell, time.Unix(callsData[i].Timestamp, 0).Format("02.01.2006 15:04"))
+					if err != nil {
+						fmt.Println(err)
+						return
+					}
+
 				}
 
-				err = file.SetCellValue(SheetName, cell, time.Unix(callsData[i].Timestamp, 0).Format("02.01.2006 15:04"))
-				if err != nil {
-					fmt.Println(err)
-					return
-				}
-
+				col++
 			}
 
-			col++
-		}
-
-		row++
-		col = startCol
+			row++
+			col = startCol
+		*/
 
 	}
+
+	return nil
 
 }
 
