@@ -325,7 +325,27 @@ func nextRow(cell string, startCol int) (string, error) {
 	return nextRow, nil
 }
 
-// print cell with format (style) in excel file
+// print cell with format (style) in excel file.
+// Supported value types:
+//
+//	int
+//	int8
+//	int16
+//	int32
+//	int64
+//	uint
+//	uint8
+//	uint16
+//	uint32
+//	uint64
+//	float32
+//	float64
+//	string
+//	[]byte
+//	time.Duration
+//	time.Time
+//	bool
+//	nil
 func printCell(file *excelize.File, cell string, style int, value any) error {
 
 	err := file.SetCellStyle(SheetName, cell, cell, style)
@@ -401,8 +421,6 @@ func printCallsData(file *excelize.File, callsData []PhoneCall) error {
 	}
 
 	cell := startCell
-	// col := startCol
-	// row := startRow
 
 	for i := range callsData {
 
@@ -489,103 +507,6 @@ func printCallsData(file *excelize.File, callsData []PhoneCall) error {
 			fmt.Println(err)
 			return err
 		}
-
-		/*
-			for j := range reflect.TypeFor[PhoneCall]().NumField() {
-
-				cell, err = excelize.CoordinatesToCellName(col, row)
-				if err != nil {
-					fmt.Println(err)
-					return err
-				}
-
-				err = file.SetCellStyle(SheetName, cell, cell, textStyle)
-				if err != nil {
-					fmt.Println(err)
-					return err
-				}
-
-				err = file.SetCellValue(SheetName, cell, callsData[i].CallID)
-				if err != nil {
-					fmt.Println(err)
-					return err
-				}
-
-				switch j {
-				case 0:
-					err = file.SetCellStyle(SheetName, cell, cell, textStyle)
-					if err != nil {
-						fmt.Println(err)
-						return
-					}
-
-					err = file.SetCellValue(SheetName, cell, callsData[i].CallID)
-					if err != nil {
-						fmt.Println(err)
-						return
-					}
-
-				case 1:
-					err = file.SetCellStyle(SheetName, cell, cell, textStyle)
-					if err != nil {
-						fmt.Println(err)
-						return
-					}
-
-					err = file.SetCellValue(SheetName, cell, callsData[i].From)
-					if err != nil {
-						fmt.Println(err)
-						return
-					}
-
-				case 2:
-					err = file.SetCellStyle(SheetName, cell, cell, textStyle)
-					if err != nil {
-						fmt.Println(err)
-						return
-					}
-
-					err = file.SetCellValue(SheetName, cell, callsData[i].To)
-					if err != nil {
-						fmt.Println(err)
-						return
-					}
-
-				case 3:
-					err = file.SetCellStyle(SheetName, cell, cell, timeStyle)
-					if err != nil {
-						fmt.Println(err)
-						return
-					}
-
-					err = file.SetCellValue(SheetName, cell, float64(callsData[i].Talktime)/86400.0)
-					if err != nil {
-						fmt.Println(err)
-						return
-					}
-
-				case 4:
-					err = file.SetCellStyle(SheetName, cell, cell, dateStyle)
-					if err != nil {
-						fmt.Println(err)
-						return
-					}
-
-					err = file.SetCellValue(SheetName, cell, time.Unix(callsData[i].Timestamp, 0).Format("02.01.2006 15:04"))
-					if err != nil {
-						fmt.Println(err)
-						return
-					}
-
-				}
-
-				col++
-			}
-
-			row++
-			col = startCol
-		*/
-
 	}
 
 	return nil
